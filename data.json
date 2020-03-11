@@ -1,0 +1,20 @@
+{
+  "admin": [
+    adminid1,
+    adminid2
+  ],
+  "api_id": Your API ID,
+  "api_hash": "Your APT HASH",
+  "bot_token": "### Your Bot Token ###",
+  "recv_channel": [
+    receiver_channel_id
+  ],
+  "group_watchlist": [
+    gourpid
+  ],
+  "user_watchlist": [
+    userid1,
+    userid2,
+    userid3
+  ]
+}
