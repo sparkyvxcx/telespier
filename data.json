@@ -1,20 +1,23 @@
 {
   "admin": [
-    adminid1,
-    adminid2
+    admin_id1,
+    admin_id2
   ],
-  "api_id": Your API ID,
-  "api_hash": "Your APT HASH",
-  "bot_token": "### Your Bot Token ###",
+  "api_id": Your_API_ID,
+  "api_hash": "Your_API_HASH",
+  "bot_token": "Your_Bot_Token",
   "recv_channel": [
     receiver_channel_id
   ],
+  "special_watchlist": [
+	"userid:channleid"
+  ],
   "group_watchlist": [
-    gourpid
+    gourp_id
   ],
   "user_watchlist": [
-    userid1,
-    userid2,
-    userid3
+    user_id1,
+    user_id2,
+    user_id3
   ]
 }

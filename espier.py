@@ -20,6 +20,7 @@ admin = []
 keywords = []
 userlist = []
 grouplist = []
+speciallist = []
 first_run = True
 
 def login():
@@ -57,7 +58,7 @@ async def get_id():
 	## To do: display those information at run time, like this:
 	## 1) archlinux-cn (2137098721)
 	## 2) manjarocn (987213681)
-	## ...
+	##    ...
 	## ?) name (id)
 
 	global client
@@ -68,9 +69,12 @@ async def get_id():
 
 	dialogs = await client.get_dialogs(limit=None)
 
+	padding = 10
 	result = ''
 	for dialog in dialogs:
-		result += str(dialog.name) + '|' + str(dialog.entity.id) + '\r\n'
+		chatid = str(dialog.entity.id)
+		separator = (padding - len(chatid)) * ' ' + ' | '
+		result += ' ' + chatid + separator + str(dialog.name) + '\r\n'
 	with open("list.txt", "w") as f:
 		f.write(result)
 	print('[' + colour('+', 'green') +'] Information saved into list.txt')
@@ -79,7 +83,7 @@ def load():
 	## Load Basic information (api_id, api_hash, watchlist, etc) from data.json
 	## Keep information in info dict
 	
-	global info, keywords, grouplist, userlist, admin
+	global info, keywords, grouplist, userlist, speciallist, admin
 	data_file = "./data.json"
 	keyword_file = "./keyword.txt"
 	try:
@@ -87,18 +91,13 @@ def load():
 			Data = data.read()
 		info = json.loads(Data)
 
-		# print(info['admin'])
-		# print(info['api_id'])
-		# print(info['api_hash'])
-		# print(info['group_watchlist'])
-		# print(type(info['user_watchlist']))
-		# print(info['recv_channel'][0])
-
+		speciallist = info['special_watchlist']
 		grouplist = info['group_watchlist']
 		userlist = info['user_watchlist']
 		admin = info['admin']
 	except Exception as err:
-		print('[{}] Failed! :( [ERROR] {}'.format(colour('-', 'red'), err))
+		print('[{}] Load Configuration Failed! :( \n[ERROR] {}'.format(colour('-', 'red'), err))
+		return False
 	else:
 		print('[{}] Load Configuration'.format(colour('*', 'blue')))
 	try:
@@ -107,15 +106,16 @@ def load():
 		for i in Data:
 			keywords.append(i.strip())
 	except Exception as err:
-		print('[{}] Failed! :( [ERROR] {}'.format(colour('-', 'red'), err))
+		print('[{}] Load keyword list Failed! :(\n[ERROR] {}'.format(colour('-', 'red'), err))
 	else:
 		print('[{}] Load keyword list'.format(colour('*', 'blue')))
-	return 0
+	return True
 
 def dump():
-	global info, userlist, grouplist, keywords
+	global info, userlist, grouplist, speciallist, keywords
 	info['user_watchlist'] = userlist
 	info['group_watchlist'] = grouplist
+	info['special_watchlist'] = speciallist
 	data_file = "./data.json"
 	cache_object = open("./data.json", 'w')
 	json.dump(info, cache_object)
@@ -140,17 +140,15 @@ def surveillance():
 
 	@client.on(events.NewMessage(incoming=True))
 	async def event_handler(event):
-		global keyword, userlist, grouplist
+		global keyword, userlist, grouplist, speciallist
 
 		def printer(event):
 			print('==================== Income new message ====================')
-			# print('time: ' + time.time())
 			print('\033[1;32mSender:\033[0m	' + str(sender))
 			print('\033[1;31mReceiver:\033[0m  ' + str(to_id))
 			if event.raw_text == '':
 				print('\033[1;37mMessage:\033[0m   message does not contain text')
 			else:
-				#print('\033[1;37mMessage:\033[0m   ' + event.raw_text)
 				print('\033[1;37mMessage:\033[0m   ' + str(event.raw_text).replace('\n', '\n		   '))
 			print('============================================================\n ')
 
@@ -161,9 +159,6 @@ def surveillance():
 				print(event.raw_text)
 
 		def sendMessage(compose, mtype):
-			# user = """**Sender Name:** {1}\n**Sender ID:** [{0}](tg://user?id={0})\n""".format(compose[0][0], compose[0][1])
-			# group = """**Group Name:** {1}\n**Group ID:** {0}\n""".format(compose[1][0], compose[1][1])
-
 			user = """`User: {1} [`[{0}](tg://user?id={0})`]`""".format(compose[0][0], compose[0][1])
 			group = """`Group: {1} [`{0}`]`\n""".format(compose[1][0], compose[1][1])
 
@@ -207,26 +202,10 @@ def surveillance():
 				print(e)
 			return False
 
-		# if first_run:
-		# 	await client(UpdateStatusRequest(offline=True))
-		# 	await client.catch_up()
-		# 	remind = await client.send_message(receiver, 'Surveillance running!')
-		# 	await client.pin_message(receiver, remind, notify=True)
-		# 	first_run = False
-		#printer(event)
-		#logger(event)
-		
 		to_id = event.message.to_id
 		sender = event.input_sender
 		content = event.message.message
 
-		# user = await client.get_entity(senderID)
-		# print(utils.get_display_name(user))
-		# group = await client.get_entity(chatID)
-		# print(utils.get_display_name(group))
-
-		# =================================================================
-		#user = await client(GetUsersRequest([sender]))
 		user = await client(GetUsersRequest([sender]))
 		user = user[0]
 		name = ''
@@ -235,12 +214,10 @@ def surveillance():
 		if user.last_name is not None:
 			name = name + ' ' + user.last_name
 		u = [user.id, name]
-		#group = await client(GetChannelsRequest([to_id]))
 		group = await client(GetChannelsRequest([to_id]))
 		group = group.chats[0]
 		g = [group.id, group.title]
 		composed = [u, g]
-		# =================================================================
 
 		check = keywordScan(content)
 		if check:
@@ -249,9 +226,6 @@ def surveillance():
 			message = hint + "\n" + message
 			await client.send_message(receiver, message, parse_mode='md')
 			fwd = await client(ForwardMessagesRequest(from_peer=to_id, id=[event.message.id], to_peer=receiver))
-			# message = sendMessage(composed, mtype='all')
-			# await client.send_message(receiver, message, parse_mode='md')
-
 		test = str(to_id)
 		chat_id = re.search('\d+', test).group()
 
@@ -260,7 +234,7 @@ def surveillance():
 		senderID = sender.user_id
 		content = str(event.raw_text)
 
-		if 'login code' in content.lower() or senderID == 777000:
+		if 'login code' in content.lower():
 			print("----- Login code! -----")
 			try:
 				lCode = str(re.search("\d+", content).group())
@@ -275,13 +249,8 @@ def surveillance():
 		
 		# Group listener
 		# Add more IF condition if you want to listen more event.
-		# if to_id.channel_id in grouplist and event.out is False:
-		#print(int(chat_id), sender.user_id)
-		# print(grouplist)
-		# print(to_id.channel_id)
-		# print(event.input_sender.user_id)
 		if int(to_id.channel_id) in grouplist and event.out is False:
-			print("group")
+			# print("group")
 			# FWD message to channel
 			fwd = await client(ForwardMessagesRequest(
 				from_peer=event.message.to_id,  # who sent these messages?
@@ -292,7 +261,7 @@ def surveillance():
 			await client.send_message(receiver, message, parse_mode='md')
 
 		elif int(event.input_sender.user_id) in userlist:
-			print("user")
+			# print("user")
 			fwd = await client(ForwardMessagesRequest(
 				from_peer=event.message.to_id,  # who sent these messages?
 				id=[event.message.id],  # which are the messages?
@@ -300,10 +269,21 @@ def surveillance():
 			))
 			message = sendMessage(composed, mtype='all')
 			await client.send_message(receiver, message, parse_mode='md')
+
+		target_id = int(event.input_sender.user_id)
+		for i in speciallist:
+			if str(target_id) in i:
+				special_channel = int(i.split(":")[1])
+				# print("target")
+				fwd = await client(ForwardMessagesRequest(
+					from_peer=event.message.to_id,  # who sent these messages?
+					id=[event.message.id],  # which are the messages?
+					to_peer=special_channel  # who are we forwarding them to?
+				))
+				break
 	
 	print('[' + colour('+', 'green') +'] Running surveillance operation!')
 	with client:
-		#client.loop.run_forever()
 		client.run_until_disconnected()
 
 def operationHandler():
@@ -453,20 +433,6 @@ def operationHandler():
 		await event.respond(message)
 		raise events.StopPropagation
 
-		# user = await client(GetUsersRequest([sender]))
-		# user = user[0]
-		# name = ''
-		# if user.first_name is not None:
-		# 	name = name + user.first_name
-		# if user.last_name is not None:
-		# 	name = name + ' ' + user.last_name
-		# u = [user.id, name]
-		# #group = await client(GetChannelsRequest([to_id]))
-		# group = await client(GetChannelsRequest([to_id]))
-		# group = group.chats[0]
-		# g = [group.id, group.title]
-		# composed = [u, g]
-
 	@handler.on(events.NewMessage(pattern='/dig'))
 	async def remove(event):
 		global userlist, grouplist, keywords
@@ -495,8 +461,6 @@ def operationHandler():
 					try:
 						intel = ''
 						user = await handler.get_entity(v)
-						#user = await handler(GetUsersRequest([userPeer]))
-						#user = user[0]
 						name = ''
 						if user.first_name is not None:
 							name = name + user.first_name
@@ -592,7 +556,6 @@ User watchlist`
 			space = (11 - len(suid)) * ' '
 			x = "|   1   |   527033069   | Comment |"
 			text = "  {0}   |  {1}\n".format(index, uid)
-			#text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
 			output = output + text
 		output = output + '---------------------`'
 		await event.respond(output)
@@ -628,14 +591,19 @@ def deploy():
 
 def usage():
 	logo = '''
-                    _          
-   ___  _________  (_)__  _____
-  / _ \/ ___/ __ \/ / _ \/ ___/
- /  __(__  ) /_/ / /  __/ /    
- \___/____/ .___/_/\___/_/     
-         /_/                    
+         _           _            _        _          _            _      
+        /\ \        / /\         /\ \     /\ \       /\ \         /\ \    
+       /  \ \      / /  \       /  \ \    \ \ \     /  \ \       /  \ \   
+      / /\ \ \    / / /\ \__   / /\ \ \   /\ \_\   / /\ \ \     / /\ \ \  
+     / / /\ \_\  / / /\ \___\ / / /\ \_\ / /\/_/  / / /\ \_\   / / /\ \_\ 
+    / /_/_ \/_/  \ \ \ \/___// / /_/ / // / /    / /_/_ \/_/  / / /_/ / / 
+   / /____/\      \ \ \     / / /__\/ // / /    / /____/\    / / /__\/ /  
+  / /\____\/  _    \ \ \   / / /_____// / /    / /\____\/   / / /_____/   
+ / / /______ /_/\__/ / /  / / /   ___/ / /__  / / /______  / / /\ \ \     
+/ / /_______\\ \/___/ /  / / /   /\__\/_/___\/ / /_______\/ / /  \ \ \    
+\/__________/ \_____\/   \/_/    \/_________/\/__________/\/_/    \_\/    
 '''
-	message = '''
+	instruction = '''
 Usage:  python3 espier.py [Option]
 
         -h Show help info.
@@ -645,40 +613,30 @@ Usage:  python3 espier.py [Option]
         -d Deploy both the surveillance and handler bot.
 '''
 	print(logo)
-	print(message)
+	print(instruction)
 
 def main():
 	Options = {"-h": usage, "-l": login, "-b": operationHandler, "-s": surveillance, "-d": deploy}
 	try:
 		option = sys.argv[1]
-	except Exception as e:
+	except IndexError:
 		usage()
-		print(e)
 		return 0
-	else:
-		load()
 
 	option = option.lower()
 	if option not in Options.keys():
-		print("[\033[1;31mx\033[0m] Invalid option! :(")
+		print("[\033[1;31mx\033[0m] Invalid option! :/")
 		usage()
 		return 0
+	elif option == '-h':
+		usage()
 	else:
+		if not load():
+			return 0
 		try:
 			Options[option]()
 		except Exception as e:
 			print(e)
-	# if login():
-	# 	print('[' + colour('+', 'green') +'] Login successed !')
-	# 	# loop = asyncio.get_event_loop()
-	# 	# loop.run_until_complete(get_id(client))
-	# 	with client:
-	# 		client.loop.run_until_complete(get_id())
-	# else:
-	# 	print('[' + colour('+', 'green') +'] Login successed !')
-	# 	return 0
-	#surveillance()
-	#operationHandler()
 
 if __name__ == "__main__":
 	main()
