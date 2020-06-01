@@ -24,6 +24,8 @@ speciallist = []
 first_run = True
 
 def login():
+    # Log into operating telegram account and fetch chatlist from this account.
+
 	global client, info
 	try:
 		client = TelegramClient('espier', info['api_id'], info['api_hash'])
@@ -55,9 +57,10 @@ def colour(s, hue):
 
 async def get_id():
 	## Get all the channel, groups, chats id you have.
+
 	## To do: display those information at run time, like this:
-	## 1) archlinux-cn (2137098721)
-	## 2) manjarocn (987213681)
+	## 1) archlinux (2137098721)
+	## 2) manjaroen (987213681)
 	##    ...
 	## ?) name (id)
 
@@ -81,7 +84,7 @@ async def get_id():
 
 def load():
 	## Load Basic information (api_id, api_hash, watchlist, etc) from data.json
-	## Keep information in info dict
+	## Save all that information in info dict
 	
 	global info, keywords, grouplist, userlist, speciallist, admin
 	data_file = "./data.json"
@@ -134,14 +137,11 @@ def surveillance():
 	client = TelegramClient('espier', info['api_id'], info['api_hash'], loop=loop)
 	receiver = PeerChannel(info['recv_channel'][0])
 
-	# Set Offline to keep operation covert.
-	#await client(UpdateStatusRequest(offline=True))
-	# If you like to transfer to more places, add accordingly
-
 	@client.on(events.NewMessage(incoming=True))
 	async def event_handler(event):
 		global keyword, userlist, grouplist, speciallist
 
+                # Debbug printer
 		def printer(event):
 			print('==================== Income new message ====================')
 			print('\033[1;32mSender:\033[0m	' + str(sender))
@@ -152,6 +152,7 @@ def surveillance():
 				print('\033[1;37mMessage:\033[0m   ' + str(event.raw_text).replace('\n', '\n		   '))
 			print('============================================================\n ')
 
+                # Logger
 		def logger(event):
 			if event.raw_text == '':
 				print('message does not contain text')
@@ -159,8 +160,8 @@ def surveillance():
 				print(event.raw_text)
 
 		def sendMessage(compose, mtype):
-			user = """`User: {1} [`[{0}](tg://user?id={0})`]`""".format(compose[0][0], compose[0][1])
-			group = """`Group: {1} [`{0}`]`\n""".format(compose[1][0], compose[1][1])
+			user = """`Sender: {1} [`[{0}](tg://user?id={0})`]`""".format(compose[0][0], compose[0][1])
+			group = """`Group:  {1} [`{0}`]`\n""".format(compose[1][0], compose[1][1])
 
 			result = ''
 
@@ -190,6 +191,7 @@ def surveillance():
 			compose = [u, g]
 			return compose
 
+                # Keyword check
 		def keywordScan(text):
 			global keywords
 			if text == None:
@@ -248,14 +250,14 @@ def surveillance():
 				print(err)
 		
 		# Group listener
-		# Add more IF condition if you want to listen more event.
+		# Add more IF condition accordingly if you want to listen more event.
 		if int(to_id.channel_id) in grouplist and event.out is False:
 			# print("group")
 			# FWD message to channel
 			fwd = await client(ForwardMessagesRequest(
-				from_peer=event.message.to_id,  # who sent these messages?
-				id=[event.message.id],  # which are the messages?
-				to_peer=receiver  # who are we forwarding them to?
+				from_peer=event.message.to_id,  # sender of this intercepted message
+				id=[event.message.id],          # id of this intercepted messages
+				to_peer=receiver                # receiver channle id
 			))
 			message = sendMessage(composed, mtype='all')
 			await client.send_message(receiver, message, parse_mode='md')
@@ -263,22 +265,23 @@ def surveillance():
 		elif int(event.input_sender.user_id) in userlist:
 			# print("user")
 			fwd = await client(ForwardMessagesRequest(
-				from_peer=event.message.to_id,  # who sent these messages?
-				id=[event.message.id],  # which are the messages?
-				to_peer=receiver  # who are we forwarding them to?
+				from_peer=event.message.to_id,  # sender of this intercepted message
+				id=[event.message.id],          # id of this intercepted messages
+				to_peer=receiver                # receiver channle id
 			))
 			message = sendMessage(composed, mtype='all')
 			await client.send_message(receiver, message, parse_mode='md')
 
+                # Special targeted user checker
 		target_id = int(event.input_sender.user_id)
 		for i in speciallist:
 			if str(target_id) in i:
 				special_channel = int(i.split(":")[1])
 				# print("target")
 				fwd = await client(ForwardMessagesRequest(
-					from_peer=event.message.to_id,  # who sent these messages?
-					id=[event.message.id],  # which are the messages?
-					to_peer=special_channel  # who are we forwarding them to?
+					from_peer=event.message.to_id,  # sender of this intercepted message
+					id=[event.message.id],          # id of this intercepted messages
+					to_peer=special_channel         # receiver channle id
 				))
 				break
 	
