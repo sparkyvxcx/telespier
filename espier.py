@@ -159,6 +159,7 @@ def surveillance():
             else:
                 print(event.raw_text)
 
+        # Based on message type (mtype) to format message to send
         def sendMessage(compose, mtype):
             user = """`Sender: {1} [`[{0}](tg://user?id={0})`]`""".format(compose[0][0], compose[0][1])
             group = """`Group:  {1} [`{0}`]`\n""".format(compose[1][0], compose[1][1])
@@ -167,15 +168,16 @@ def surveillance():
 
             if mtype == 'group':
                 # Group Listener
-                result = user
+                result = group
             elif mtype == 'user':
                 # User Listener
-                result = group
+                result = user
             else:
                 result = user + '\r\n' + group
 
             return result
 
+        # Format user info and group info
         async def compose(sid, rid):
             user = await client(GetUsersRequest([sender]))
             user = user[0]
@@ -236,6 +238,12 @@ def surveillance():
         senderID = sender.user_id
         content = str(event.raw_text)
 
+        # malfunctioned
+        # Todo: fix it
+        # when you want to lgoin your account, Telegram (777000) will send you an unique code for authentication,
+        # if you forward this message or substract this code from this message and send out, this code will be deactivate.
+        # base64 encode this string can bypass this security check I guess.
+
         if 'login code' in content.lower():
             print("----- Login code! -----")
             try:
@@ -272,7 +280,7 @@ def surveillance():
             message = sendMessage(composed, mtype='all')
             await client.send_message(receiver, message, parse_mode='md')
 
-        # Special targeted user checker
+        # Check special targeted user
         target_id = int(event.input_sender.user_id)
         for i in speciallist:
             if str(target_id) in i:
@@ -290,11 +298,19 @@ def surveillance():
         client.run_until_disconnected()
 
 def operationHandler():
+    # handle add, delte, dig, operation using telegram bot
+    # Todo: currently qurey, add, delete function are ad hoc solution, not efficient nor readible for sure.
+    #       (1) refactory CURD functions.
+    #       (2) detailed help information when legitimate user calling /help.
+    #       (3) able to show detailed information for targeted user, group.
+    #       (4) add SQL database for further data persistence.
+
     global info
 
     loop = asyncio.new_event_loop()
     handler = TelegramClient('handler', info['api_id'], info['api_hash'], loop=loop).start(bot_token=info['bot_token'])
 
+    # check a given user id is admin or not
     def auth(sid):
         global admin
         if sid in admin:
@@ -305,7 +321,7 @@ def operationHandler():
     @handler.on(events.NewMessage(pattern='/start'))
     async def start(event):
         ## Send a message when the command /start is issued.
-        ## Randomly respond with a Hi! in 8 languages.
+        ## Randomly respond with a Hi!
 
         sayHi = ['Hi! 😊', 'Good day! 😂', 'Bonjour! 😄', 'Hola! 🥰', 'السلام عليكم! 😘', 'Привет! 😎', 'こんにちは! 😍', 'Guten Tag! 😋']
         chatID = event.message.chat_id
@@ -388,6 +404,8 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/del'))
     async def remove(event):
+        # Handle remove request for group, user, keyword list when /del is issued.
+
         global userlist, grouplist, keywords
         senderID = event.message.from_id
         if not auth(senderID):
@@ -512,6 +530,12 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/show'))
     async def show(event):
+        # Provide detailed information for group, user, keyword list when /show is issued.
+        # Todo: information should split into three different type, which are user, group, keyword.
+        #       `/show user` should server detailed user information from user watchlist
+        #       `/show group` should server detailed group information from group watchlist
+        #       `/show keyword` should server detailed keyword information from keyword watchlist
+
         global grouplist, userlist
         senderID = event.message.from_id
         if not auth(senderID):
@@ -577,6 +601,8 @@ User watchlist`
     handler.run_until_disconnected()
 
 def deploy():
+    # deploy both survilance and handler function
+
     tasks = []
 
     task1 = threading.Thread(target=surveillance)
@@ -619,6 +645,8 @@ Usage:  python3 espier.py [Option]
     print(instruction)
 
 def main():
+    # Todo: command line option handle need refactory in a more reasonable way
+
     Options = {"-h": usage, "-l": login, "-b": operationHandler, "-s": surveillance, "-d": deploy}
     try:
         option = sys.argv[1]
