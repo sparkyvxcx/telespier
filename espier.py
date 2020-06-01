@@ -300,10 +300,10 @@ def surveillance():
 def operationHandler():
     # handle add, delte, dig, operation using telegram bot
     # Todo: currently qurey, add, delete function are ad hoc solution, not efficient nor readible for sure.
-    #       (1) refactory CURD functions.
-    #       (2) detailed help information when legitimate user calling /help.
-    #       (3) able to show detailed information for targeted user, group.
-    #       (4) add SQL database for further data persistence.
+    #       1. refactory CURD functions.
+    #       2. detailed help information when legitimate user calling /help.
+    #       3. able to show detailed information for targeted user, group.
+    #       4. add SQL database for further data persistence.
 
     global info
 
@@ -323,7 +323,16 @@ def operationHandler():
         ## Send a message when the command /start is issued.
         ## Randomly respond with a Hi!
 
-        sayHi = ['Hi! 😊', 'Good day! 😂', 'Bonjour! 😄', 'Hola! 🥰', 'السلام عليكم! 😘', 'Привет! 😎', 'こんにちは! 😍', 'Guten Tag! 😋']
+        sayHi = [
+                'Hi! 😊',
+                'Good day! 😂',
+                'Bonjour! 😄',
+                'Hola! 🥰',
+                'السلام عليكم! 😘',
+                'Привет! 😎',
+                'こんにちは! 😍',
+                'Guten Tag! 😋'
+                ]
         chatID = event.message.chat_id
         senderID = event.message.from_id
         try:
@@ -347,14 +356,18 @@ def operationHandler():
         #await eavesdropper(event)
         to_id = event.message.chat_id
 
-        async with handler.action(to_id, 'typing'):
-            await asyncio.sleep(3)
-            await event.reply("Howdy, how y'all doing?")
+        senderID = event.message.from_id
+        if auth(senderID):
+            async with handler.action(to_id, 'typing'):
+                await asyncio.sleep(3)
+                await event.reply("Howdy, how y'all doing?")
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/add'))
     async def add(event):
         global userlist, grouplist, keywords
+
+        # admin authentication
         senderID = event.message.from_id
         if not auth(senderID):
             raise events.StopPropagation
@@ -455,8 +468,9 @@ def operationHandler():
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/dig'))
-    async def remove(event):
+    async def query(event):
         global userlist, grouplist, keywords
+
         senderID = event.message.from_id
         if not auth(senderID):
             raise events.StopPropagation
@@ -532,11 +546,12 @@ def operationHandler():
     async def show(event):
         # Provide detailed information for group, user, keyword list when /show is issued.
         # Todo: information should split into three different type, which are user, group, keyword.
-        #       `/show user` should server detailed user information from user watchlist
-        #       `/show group` should server detailed group information from group watchlist
-        #       `/show keyword` should server detailed keyword information from keyword watchlist
+        #       1. `/show user` should server detailed user information from user watchlist
+        #       2. `/show group` should server detailed group information from group watchlist
+        #       3. `/show keyword` should server detailed keyword information from keyword watchlist
 
-        global grouplist, userlist
+        global grouplist, userlist, keywords
+
         senderID = event.message.from_id
         if not auth(senderID):
             raise events.StopPropagation
@@ -559,33 +574,47 @@ def operationHandler():
         #       index = str(i+1)
         #   text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
         #   output = output + text
-        tables = """
-| Index |    User ID    | Comment |
-|-------|---------------|---------|
-|   1   |   527033069   |  $1600  |
-|   2   |   527033069   |    $12  |
-|   3   |   527033069   |     $1  |
-"""
-        output = """
+
+        pUsers = """
 **WATCHLIST**
 User watchlist`
----------------------
+-------+-------------
  Index |   User ID   
--------|-------------
+-------+-------------
 """
-        for i in range(len(userlist)):
-            uid = userlist[i]
-            if i < 9:
-                index = ' {}'.format(str(i+1))
-            else:
-                index = str(i+1)
-            suid = str(uid)
-            space = (11 - len(suid)) * ' '
-            x = "|   1   |   527033069   | Comment |"
-            text = "  {0}   |  {1}\n".format(index, uid)
-            output = output + text
-        output = output + '---------------------`'
-        await event.respond(output)
+        pGroups = """
+**WATCHLIST**
+Group watchlist`
+-------+-------------
+ Index |  Group ID   
+-------+-------------
+"""
+        pKeywords = """
+**WATCHLIST**
+Keyword watchlist`
+-------+-------------
+ Index |   Keyword   
+-------+-------------
+"""
+
+        async def contentBuilder(watchlist, output):
+            for i in range(len(watchlist)):
+                content = watchlist[i]
+                if i < 9:
+                    index = ' {}'.format(str(i+1))
+                else:
+                    index = str(i+1)
+                content = str(content)
+                space = (11-len(content)) * ' '
+                text = "  {0}   |  {1}\n".format(index, content)
+                output = output + text
+            output = output + '-------+-------------`'
+            await event.respond(output)
+
+        await contentBuilder(userlist, pUsers)    # send user watchlist
+        await contentBuilder(grouplist, pGroups)  # send group watchlist
+        await contentBuilder(keywords, pKeywords) # send keyword watchlist
+            
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/save'))
