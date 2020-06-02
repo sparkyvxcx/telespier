@@ -1,5 +1,15 @@
 #/usr/bin/env python3
 
+import threading
+import asyncio
+import json
+import time
+import sys
+import re
+
+from base64 import b64encode
+from random import randint
+
 from telethon import TelegramClient, events, utils
 from telethon.extensions.markdown import parse
 from telethon.tl.functions.messages import ForwardMessagesRequest
@@ -9,11 +19,6 @@ from telethon.tl.functions.channels import GetChannelsRequest
 from telethon.tl.functions.users import GetUsersRequest
 from telethon.tl.types import *
 
-from base64 import b64encode
-from random import randint
-
-import threading, json, sys, re, asyncio, time
-
 client = ''
 info = {}
 admin = []
@@ -21,10 +26,11 @@ keywords = []
 userlist = []
 grouplist = []
 speciallist = []
-first_run = True
 
 def login():
-    # Log into operating telegram account and fetch chatlist from this account.
+    """
+    Log into operating telegram account and fetch chatlist from this account.
+    """
 
     global client, info
     try:
@@ -56,19 +62,17 @@ def colour(s, hue):
     return "\033[{}m{}\033[0m".format(palette[hue], s)
 
 async def get_id():
-    ## Get all the channel, groups, chats id you have.
+    """
+    Get all the channel, groups, chats id you have.
 
-    ## To do: display those information at run time, like this:
-    ## 1) archlinux (2137098721)
-    ## 2) manjaroen (987213681)
-    ##    ...
-    ## ?) name (id)
+    To do: display those information at run time, like this:
+           1) archlinux (2137098721)
+           2) manjaroen (987213681)
+              ...
+           ?) name (id)
+    """
 
     global client
-
-    # You can print all the dialogs/conversations that you are part of:
-    #async for dialog in client.iter_dialogs():
-    #   print(dialog.name, 'has ID', dialog.id)
 
     dialogs = await client.get_dialogs(limit=None)
 
@@ -83,8 +87,10 @@ async def get_id():
     print('[' + colour('+', 'green') +'] Information saved into list.txt')
 
 def load():
-    ## Load Basic information (api_id, api_hash, watchlist, etc) from data.json
-    ## Save all that information in info dict
+    """
+    Load Basic information (api_id, api_hash, watchlist, etc) from data.json
+    Save all that information in info dict
+    """
     
     global info, keywords, grouplist, userlist, speciallist, admin
     data_file = "./data.json"
@@ -115,6 +121,10 @@ def load():
     return True
 
 def dump():
+    """
+    Dump current watchlists into disk
+    """
+
     global info, userlist, grouplist, speciallist, keywords
     info['user_watchlist'] = userlist
     info['group_watchlist'] = grouplist
@@ -179,7 +189,7 @@ def surveillance():
 
         # Format user info and group info
         async def compose(sid, rid):
-            user = await client(GetUsersRequest([sender]))
+            user = await client(GetUsersRequest([sid]))
             user = user[0]
             name = ''
             if user.first_name is not None:
@@ -187,16 +197,15 @@ def surveillance():
             if user.last_name is not None:
                 name = name + ' ' + user.last_name
             u = [user.id, name]
-            group = await client(GetChannelsRequest([to_id]))
+            group = await client(GetChannelsRequest([rid]))
             group = group.chats[0]
             g = [group.id, group.title]
-            compose = [u, g]
-            return compose
+            return [u, g]
 
-        # Keyword check
+        # Keyword scanner
         def keywordScan(text):
             global keywords
-            if text == None:
+            if text is None:
                 return False
             try:
                 for word in keywords:
@@ -210,87 +219,54 @@ def surveillance():
         sender = event.input_sender
         content = event.message.message
 
-        user = await client(GetUsersRequest([sender]))
-        user = user[0]
-        name = ''
-        if user.first_name is not None:
-            name = name + user.first_name
-        if user.last_name is not None:
-            name = name + ' ' + user.last_name
-        u = [user.id, name]
-        group = await client(GetChannelsRequest([to_id]))
-        group = group.chats[0]
-        g = [group.id, group.title]
-        composed = [u, g]
-
+        # Keyword check
         check = keywordScan(content)
         if check:
             hint = "**Keyword:**  {}".format(check)
+            composed = await compose(sender, to_id)
             message = sendMessage(composed, mtype='all')
             message = hint + "\n" + message
             await client.send_message(receiver, message, parse_mode='md')
             fwd = await client(ForwardMessagesRequest(from_peer=to_id, id=[event.message.id], to_peer=receiver))
-        test = str(to_id)
-        chat_id = re.search('\d+', test).group()
+            # print("Keyword hit!")
 
-        ## Monitoring Telegram Login Code Message.
-        ## senderID = event.message.from_id
-        senderID = sender.user_id
-        content = str(event.raw_text)
-
-        # malfunctioned
-        # Todo: fix it
-        # when you want to lgoin your account, Telegram (777000) will send you an unique code for authentication,
-        # if you forward this message or substract this code from this message and send out, this code will be deactivate.
-        # base64 encode this string can bypass this security check I guess.
-
-        if 'login code' in content.lower():
-            print("----- Login code! -----")
-            try:
-                lCode = str(re.search("\d+", content).group())
-                eCode = b64encode(lCode.encode()).decode()
-                eCode = "`{}`".format(eCode)
-                content = content.replace("login code:", "**Login code:**")
-                content = content.replace(lCode, eCode)
-                ding = await client.send_message(receiver, content, parse_mode='md', silent=False)
-                #await client.pin_message(receiver, ding, notify=True)
-            except Exception as err:
-                print(err)
-        
-        # Group listener
+        # Group check
         # Add more IF condition accordingly if you want to listen more event.
         if int(to_id.channel_id) in grouplist and event.out is False:
-            # print("group")
-            # FWD message to channel
+            # Forword message to receiver channel
             fwd = await client(ForwardMessagesRequest(
                 from_peer=event.message.to_id,  # sender of this intercepted message
                 id=[event.message.id],          # id of this intercepted messages
                 to_peer=receiver                # receiver channle id
             ))
+            composed = await compose(sender, to_id)
             message = sendMessage(composed, mtype='all')
             await client.send_message(receiver, message, parse_mode='md')
-
+            # print("Group hit!")
+        # User check
         elif int(event.input_sender.user_id) in userlist:
-            # print("user")
+            # Forword message to receiver channel
             fwd = await client(ForwardMessagesRequest(
                 from_peer=event.message.to_id,  # sender of this intercepted message
                 id=[event.message.id],          # id of this intercepted messages
                 to_peer=receiver                # receiver channle id
             ))
+            composed = await compose(sender, to_id)
             message = sendMessage(composed, mtype='all')
             await client.send_message(receiver, message, parse_mode='md')
+            # print("User hit!")
 
-        # Check special targeted user
+        # Special targeted user check
         target_id = int(event.input_sender.user_id)
         for i in speciallist:
             if str(target_id) in i:
                 special_channel = int(i.split(":")[1])
-                # print("target")
                 fwd = await client(ForwardMessagesRequest(
                     from_peer=event.message.to_id,  # sender of this intercepted message
                     id=[event.message.id],          # id of this intercepted messages
                     to_peer=special_channel         # receiver channle id
                 ))
+                # print("Target hit!")
                 break
     
     print('[' + colour('+', 'green') +'] Running surveillance operation!')
@@ -298,19 +274,21 @@ def surveillance():
         client.run_until_disconnected()
 
 def operationHandler():
-    # handle add, delte, dig, operation using telegram bot
-    # Todo: currently qurey, add, delete function are ad hoc solution, not efficient nor readible for sure.
-    #       1. refactory CURD functions.
-    #       2. detailed help information when legitimate user calling /help.
-    #       3. able to show detailed information for targeted user, group.
-    #       4. add SQL database for further data persistence.
+    """
+    handle add, delte, dig, operation using telegram bot
+    Todo: currently qurey, add, delete function are ad hoc solution, not efficient nor readible for sure.
+          1. refactory CURD functions.
+          2. detailed help information when legitimate user calling /help.
+          3. able to show detailed information for targeted user, group.
+          4. add SQL database for further data persistence.
+    """
 
     global info
 
     loop = asyncio.new_event_loop()
     handler = TelegramClient('handler', info['api_id'], info['api_hash'], loop=loop).start(bot_token=info['bot_token'])
 
-    # check a given user id is admin or not
+    # Check a given user id is admin or not
     def auth(sid):
         global admin
         if sid in admin:
@@ -320,8 +298,10 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/start'))
     async def start(event):
-        ## Send a message when the command /start is issued.
-        ## Randomly respond with a Hi!
+        """
+        Send a message when the command /start is issued.
+        Randomly respond with a Hi!
+        """
 
         sayHi = [
                 'Hi! 😊',
@@ -351,9 +331,10 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/help'))
     async def send_welcome(event):
-        ## Send a message when the command /help is issued.
+        """
+        Send a message when the command /help is issued.
+        """
 
-        #await eavesdropper(event)
         to_id = event.message.chat_id
 
         senderID = event.message.from_id
@@ -367,7 +348,7 @@ def operationHandler():
     async def add(event):
         global userlist, grouplist, keywords
 
-        # admin authentication
+        # Admin authentication
         senderID = event.message.from_id
         if not auth(senderID):
             raise events.StopPropagation
@@ -417,7 +398,9 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/del'))
     async def remove(event):
-        # Handle remove request for group, user, keyword list when /del is issued.
+        """
+        Handle remove request for group, user, keyword list when /del is issued.
+        """
 
         global userlist, grouplist, keywords
         senderID = event.message.from_id
@@ -544,36 +527,15 @@ def operationHandler():
 
     @handler.on(events.NewMessage(pattern='/show'))
     async def show(event):
-        # Provide detailed information for group, user, keyword list when /show is issued.
-        # Todo: information should split into three different type, which are user, group, keyword.
-        #       1. `/show user` should server detailed user information from user watchlist
-        #       2. `/show group` should server detailed group information from group watchlist
-        #       3. `/show keyword` should server detailed keyword information from keyword watchlist
+        """
+        Provide detailed information for group, user, keyword list when /show is issued.
+        Todo: information should split into three different type, which are user, group, keyword.
+              1. `/show user` should server detailed user information from user watchlist
+              2. `/show group` should server detailed group information from group watchlist
+              3. `/show keyword` should server detailed keyword information from keyword watchlist
+        """
 
         global grouplist, userlist, keywords
-
-        senderID = event.message.from_id
-        if not auth(senderID):
-            raise events.StopPropagation
-        # output = '== **Watchlist** ==\nUser:\n'
-        # for i in range(len(userlist)):
-        #   uid = userlist[i]
-        #   if i < 9:
-        #       index = '  {}'.format(str(i+1))
-        #   else:
-        #       index = str(i+1)
-        #   text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
-        #   output = output + text
-    
-        # output = output + '\nGroup:\n'
-        # for i in range(len(grouplist)):
-        #   uid = grouplist[i]
-        #   if i < 9:
-        #       index = '  {}'.format(str(i+1))
-        #   else:
-        #       index = str(i+1)
-        #   text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
-        #   output = output + text
 
         pUsers = """
 **WATCHLIST**
@@ -596,8 +558,38 @@ Keyword watchlist`
  Index |   Keyword   
 -------+-------------
 """
+        input_cmd = event.message.message
+        parameters = input_cmd.split(' ')
 
-        async def contentBuilder(watchlist, output):
+        senderID = event.message.from_id
+        if not auth(senderID):
+            raise events.StopPropagation
+
+        async def userLink():
+            output = '== **Watchlist** ==\nUserlink:\n'
+            for i in range(len(userlist)):
+                uid = userlist[i]
+                if i < 9:
+                    index = '  {}'.format(str(i+1))
+                else:
+                    index = str(i+1)
+                text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
+                output = output + text
+            await event.respond(output)
+    
+        async def groupLink():
+            output = output + '\nGroup:\n'
+            for i in range(len(grouplist)):
+                uid = grouplist[i]
+                if i < 9:
+                    index = '  {}'.format(str(i+1))
+                else:
+                    index = str(i+1)
+                text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
+                output = output + text
+            await event.respond(output)
+
+        async def summaryBuilder(watchlist, output):
             for i in range(len(watchlist)):
                 content = watchlist[i]
                 if i < 9:
@@ -611,14 +603,15 @@ Keyword watchlist`
             output = output + '-------+-------------`'
             await event.respond(output)
 
-        await contentBuilder(userlist, pUsers)    # send user watchlist
-        await contentBuilder(grouplist, pGroups)  # send group watchlist
-        await contentBuilder(keywords, pKeywords) # send keyword watchlist
+        await summaryBuilder(userlist, pUsers)    # send user watchlist summary
+        await summaryBuilder(grouplist, pGroups)  # send group watchlist summary
+        await summaryBuilder(keywords, pKeywords) # send keyword watchlist summary
             
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/save'))
     async def save(event):
+        # Save all of the watchlists into disk on the fly
         senderID = event.message.from_id
         if not auth(senderID):
             raise events.StopPropagation
@@ -630,7 +623,9 @@ Keyword watchlist`
     handler.run_until_disconnected()
 
 def deploy():
-    # deploy both survilance and handler function
+    """
+    Deploy both survilance and handler function
+    """
 
     tasks = []
 
