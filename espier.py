@@ -26,6 +26,8 @@ keywords = []
 userlist = []
 grouplist = []
 speciallist = []
+proxies = []
+pmid = 1
 
 def login():
     """
@@ -201,6 +203,34 @@ def surveillance():
             group = group.chats[0]
             g = [group.id, group.title]
             return [u, g]
+
+        async def proxyScan(text):
+            global proxies, pmid
+
+            pattern = "(?:[a-zA-Z.:/]+)(?:proxy\?server=(?:[a-zA-Z0-9\.-_~]+)(?:&port=[0-9]{1,5}&secret=[a-zA-Z0-9]+))"
+            title = "`Telegram MTProto Proxy`"
+            field = "\n[🚀 {} {}]({})"
+            sline = "\n`----------------------`"
+            items = ""
+            proxyList = re.findall(pattern, text)
+            if len(proxyList) == 0:
+                return
+            proxies = proxies + proxyList
+            for i in range(len(proxies)):
+                items = items + field.format("Proxy", i+1, proxies[i])
+            sline = "{2}{0}{1}{0}".format(sline, items, title)
+            print(sline)
+            try:
+                if pmid == 1:
+                    pMessage = await client.send_message(receiver, sline, parse_mode='md')
+                    pmid = pMessage.id
+                else:
+                    pMessage = await client.edit_message(receiver, pmid, sline, parse_mode='md')
+                    pmid = pMessage.id
+            except Exception as err:
+                pMessage = await client.send_message(receiver, sline, parse_mode='md')
+                pmid = pMessage.id
+            return
 
         # Keyword scanner
         def keywordScan(text):
