@@ -78,12 +78,12 @@ async def get_id():
 
     dialogs = await client.get_dialogs(limit=None)
 
-    padding = 10
-    result = ''
+    result = "| ID           | Chat Name\n"
     for dialog in dialogs:
         chatid = str(dialog.entity.id)
-        separator = (padding - len(chatid)) * ' ' + ' | '
-        result += ' ' + chatid + separator + str(dialog.name) + '\r\n'
+        # Note: Currently, the length of telegram uid is 10, change it accordingly for future growth.
+        item = "| {:10} | {}\r\n"  
+        result += item.format(chatid, str(dialog.name))
     with open("list.txt", "w") as f:
         f.write(result)
     print('[' + colour('+', 'green') +'] Information saved into list.txt')

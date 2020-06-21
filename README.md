@@ -1,10 +1,12 @@
-# teleespier
+![logo](https://raw.githubusercontent.com/sparkyvxcx/telespier/master/img/logo.png)
 
-A Simple Telegram Surveillance Tool
+**A Simple Telegram Surveillance Tool**
+
+The purpose of this tool is to conduct OSINT ops for me. It is free software so that you can use it and modify it for your needs. Please file a bug report if something does not work as documented or expected.
 
 ## Getting Started
 
-By exploit normal user account's ability to forward and logging group chat or channle, this simple tool forward messages from targeted user in a specific group chat with low visibility. These instructions will get you a copy of the project up and running on your local machine or Cloud Host for intel gathering and testing purposes. See deployment for notes on how to deploy the project on a live system.
+By exploit normal user account's ability to forward and logging group chat or channel, this simple tool forward messages from a targeted user in a specific group chat with a normal user account, not a bot, hence a smaller chance to get caught. These instructions will get you a copy of the project up and running on your local machine or Cloud Host for intel gathering and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
@@ -28,7 +30,7 @@ Test run:
 $ python3 espier.py
 ```
 
-```
+```shell
 Usage:  python3 espier.py [Option]
 
         -h Show help info.
@@ -40,7 +42,7 @@ Usage:  python3 espier.py [Option]
 
 ## Running pre-operation configuration
 
-1. Obtain your Telegram API id and API key by follow the procedures from [here](https://core.telegram.org/api/obtaining_api_id).
+#### 1. Obtain your Telegram API id and API key by follow the procedures from [here](https://core.telegram.org/api/obtaining_api_id)
 
 Usage Example:
 
@@ -57,7 +59,7 @@ Usage Example:
     receiver_channel_id
   ],
   "special_watchlist": [
-        "userid:channleid"
+        "userid:channelid"
   ],
   "group_watchlist": [
     group_id
@@ -70,7 +72,7 @@ Usage Example:
 }
 ```
 
-2. Create and obtain Telegram Bot token by follow the instructions from [here](https://core.telegram.org/bots).
+#### 2. Create and obtain Telegram Bot token by follow the instructions from [here](https://core.telegram.org/bots)
 
 Usage Example:
 
@@ -87,7 +89,7 @@ Usage Example:
     receiver_channel_id
   ],
   "special_watchlist": [
-        "userid:channleid"
+        "userid:channelid"
   ],
   "group_watchlist": [
     group_id
@@ -100,15 +102,17 @@ Usage Example:
 }
 ```
 
-3. Create your receiver channle for logging purpose.
-Example: 
-	Channle Name: Eavesdroping
-For specific user monitoring, say you have a specific targeted user, you should create another channle for this user. After obtain this user's uid, hardcode it with id of the channle you created for this special user in a format like `special_watchlist` into the `data.json` file.
+#### 3. Create your receiver channel
 
-Usage Example:
-tango1's uid: 12345678
-logging channle for tango1: 87654321
-and so on
+E.g. set a receiver channel named: `Eavesdroping`
+
+For specific user monitoring, say you have a specific targeted user, you should create another channel for this user. After obtain this user's uid, hardcode it with id of the channel you created for this special user in a format like `user_id:channelid` into the `special_watchlist` field.
+
+Example:
+
+- tango1's uid: `12345678`
+
+- Receiver channel for tango1: `87654321` and so on
 
 ```json
 ...
@@ -120,9 +124,11 @@ and so on
 
 ### Pull chat info from your account
 
-Tips: In order to gather more reasonable and useful chat info from start, user better join some groups he/she wanna to watch(spying) xD.
+**Note:** In order to gather more reasonable and useful chat info from start, user better join some groups he/she wanna to watch(spying) xD.
 
-```
+Query all the chat list (Groups, Channles, Chats, etc) from your account:
+
+```shell
 $ python3 espier.py -l
 ```
 
@@ -130,19 +136,19 @@ Wait for query to complete, the result will be saved into `list.txt`,  with the 
 
 Example:
 
-```tex
+```shell
  1316798278 | Fail2Hack
  1133183679 | Machine Learning
  1285896924 | 612 Reminder
  822294332  | HowToFind Bot
  777000     | Telegram
  784868894  | TEST
- 123456789  | Eavesdroping <= Your receiver channle
+ 123456789  | Eavesdroping <= Your receiver channel
 ```
 
-Now obtain the id of receiver channle from `list.txt`, open `data.json` and replace placeholder `receiver_channel_id` with your receiver channle id, so do `group_id` and `user_id`. `admin_id` shouldb be your account uid or other sockpuppet account uid under your control. It is okay to leave `admin` array and `user_watchlist` array empty. 
+Now obtain the id of receiver channel from `list.txt`, open `data.json` and replace placeholder `receiver_channel_id` with your receiver channel id, so do `group_id` and `user_id`. `admin_id` shouldb be your account uid or other sockpuppet account uid under your control. It is okay to leave `admin` array and `user_watchlist` array empty. 
 
-Example config file ready to rock:
+Example config file ready to rock: 
 
 ```json
 {
@@ -155,7 +161,7 @@ Example config file ready to rock:
     receiver_channel_id
   ],
   "special_watchlist": [
-        "userid:channleid"
+        "userid:channelid"
   ],
   "group_watchlist": [
     1316798278
@@ -167,7 +173,7 @@ Example config file ready to rock:
 
 ## Deployment
 
-Deploy logging "bot"
+Deploy logging "bot":
 
 ```bash
 $ python3 espier.py -s
@@ -175,7 +181,7 @@ $ python3 espier.py -s
 
 Without handler bot, we cannnot update user and group watchlist on the fly, but user is cool to modifiy `data.json` to update user and group watchlist. After update `data.json` file, user need to restart the application to reload `data.json`.
 
-Deploy logging "bot" and handler bot
+Deploy logging "bot" and handler bot:
 
 ```bash
 $ python3 espier.py -d
@@ -184,17 +190,28 @@ $ python3 espier.py -d
 With handler bot running, we are capable of updating user or group watchlist on the fly by interacting with handler bot.
 
 Bot command (You can add more features or commands as your will):
-	`/add target_type target_id`
-	`/del target_type target_id`
-	`/dig target_type target_id`
-	`/show`
-	`/save`
+
+- `/add target_type target_id`
+- `/del target_type target_id`
+- `/dig target_type target_id`
+- `/show`
+- `/save`
 
 Example:
 
-picholder1
+![bot-command](https://raw.githubusercontent.com/sparkyvxcx/telespier/master/img/ss1.png)
 
-picholder2
+Add keyword `Expolit`, `CVE`, `Hacker`, and test it out:
+
+![add-keyword](https://raw.githubusercontent.com/sparkyvxcx/telespier/master/img/ss2.png)
+
+Receiver channel:
+
+![forward-message](https://raw.githubusercontent.com/sparkyvxcx/telespier/master/img/ss3.png)
+
+This is an ad-hoc toy project, not meant for real-world scenario. For a better solution, I recommend [informer](https://github.com/paulpierre/informer) 👋.
+
+
 
 ## Built With
 
@@ -202,7 +219,7 @@ picholder2
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 
