@@ -319,7 +319,7 @@ def operationHandler():
     handler = TelegramClient('handler', info['api_id'], info['api_hash'], loop=loop).start(bot_token=info['bot_token'])
 
     # Check a given user id is admin or not
-    def auth(sid):
+    def isAdmin(sid):
         global admin
         if sid in admin:
             return True
@@ -346,7 +346,7 @@ def operationHandler():
         chatID = event.message.chat_id
         senderID = event.message.from_id
         try:
-            if auth(senderID):
+            if isAdmin(senderID):
                 pass
             else:
                 debug_info = "[{}] {} {}".format(colour('*', 'blue'), colour('User ID:', 'green'), senderID)
@@ -368,7 +368,7 @@ def operationHandler():
         to_id = event.message.chat_id
 
         senderID = event.message.from_id
-        if auth(senderID):
+        if isAdmin(senderID):
             async with handler.action(to_id, 'typing'):
                 await asyncio.sleep(3)
                 await event.reply("Howdy, how y'all doing?")
@@ -380,7 +380,7 @@ def operationHandler():
 
         # Admin authentication
         senderID = event.message.from_id
-        if not auth(senderID):
+        if not isAdmin(senderID):
             raise events.StopPropagation
         input_cmd = event.message.message
 
@@ -434,7 +434,7 @@ def operationHandler():
 
         global userlist, grouplist, keywords
         senderID = event.message.from_id
-        if not auth(senderID):
+        if not isAdmin(senderID):
             raise events.StopPropagation
         input_cmd = event.message.message
     
@@ -485,7 +485,7 @@ def operationHandler():
         global userlist, grouplist, keywords
 
         senderID = event.message.from_id
-        if not auth(senderID):
+        if not isAdmin(senderID):
             raise events.StopPropagation
         input_cmd = event.message.message
     
@@ -592,7 +592,7 @@ Keyword watchlist`
         parameters = input_cmd.split(' ')
 
         senderID = event.message.from_id
-        if not auth(senderID):
+        if not isAdmin(senderID):
             raise events.StopPropagation
 
         async def userLink():
@@ -643,7 +643,7 @@ Keyword watchlist`
     async def save(event):
         # Save all of the watchlists into disk on the fly
         senderID = event.message.from_id
-        if not auth(senderID):
+        if not isAdmin(senderID):
             raise events.StopPropagation
         dump()
         await event.respond("Don't worry, Watchlist saved!")
