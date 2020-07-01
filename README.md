@@ -12,7 +12,7 @@ By exploit normal user account's ability to forward and logging group chat or ch
 
 This project use telethon api library to interact with Telegram api, install telethon library before procced to deploy.
 
-```bash
+```shell
 $ python3 -m pip install telethon
 ```
 
@@ -20,13 +20,13 @@ $ python3 -m pip install telethon
 
 Clone or download the project:
 
-```bash
-$ git clone https://github.com/sparkyvxcx/Teleespier
+```shell
+$ git clone https://github.com/sparkyvxcx/telespier
 ```
 
 Test run:
 
-```bash
+```shell
 $ python3 espier.py
 ```
 
@@ -175,7 +175,7 @@ Example config file ready to rock:
 
 Deploy logging "bot":
 
-```bash
+```shell
 $ python3 espier.py -s
 ```
 
@@ -183,7 +183,7 @@ Without handler bot, we cannnot update user and group watchlist on the fly, but 
 
 Deploy logging "bot" and handler bot:
 
-```bash
+```shell
 $ python3 espier.py -d
 ```
 
