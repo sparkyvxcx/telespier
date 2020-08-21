@@ -1,9 +1,8 @@
-#/usr/bin/env python3
+#!/usr/bin/env python3
 
 import threading
 import asyncio
 import json
-import time
 import sys
 import re
 
@@ -20,6 +19,7 @@ from telethon.tl.functions.users import GetUsersRequest
 from telethon.tl.types import *
 
 client = ''
+PMID = 1
 info = {}
 admin = []
 keywords = []
@@ -27,7 +27,6 @@ userlist = []
 grouplist = []
 speciallist = []
 proxies = []
-pmid = 1
 
 def login():
     """
@@ -39,7 +38,7 @@ def login():
         client = TelegramClient('espier', info['api_id'], info['api_hash'])
         print('[' + colour('*', 'blue') +'] If you have 2FA password, please enter it now.')
         password = input(colour(' ➜  ', 'green'))
-    
+
         if password != '':
             client.start(password=password)
         else:
@@ -51,7 +50,6 @@ def login():
     else:
         print('[' + colour('+', 'green') +'] Login successed!')
 
-        loop = asyncio.get_event_loop()
         with client:
             client.loop.run_until_complete(get_id())
         return True
@@ -82,7 +80,7 @@ async def get_id():
     for dialog in dialogs:
         chatid = str(dialog.entity.id)
         # Note: Currently, the length of telegram uid is 10, change it accordingly for future growth.
-        item = "| {:10} | {}\r\n"  
+        item = "| {:10} | {}\r\n"
         result += item.format(chatid, str(dialog.name))
     with open("list.txt", "w") as f:
         f.write(result)
@@ -93,7 +91,7 @@ def load():
     Load Basic information (api_id, api_hash, watchlist, etc) from data.json
     Save all that information in info dict
     """
-    
+
     global info, keywords, grouplist, userlist, speciallist, admin
     data_file = "./data.json"
     keyword_file = "./keyword.txt"
@@ -205,7 +203,7 @@ def surveillance():
             return [u, g]
 
         async def proxyScan(text):
-            global proxies, pmid
+            global proxies, PMID
 
             pattern = "(?:[a-zA-Z.:/]+)(?:proxy\?server=(?:[a-zA-Z0-9\.-_~]+)(?:&port=[0-9]{1,5}&secret=[a-zA-Z0-9]+))"
             title = "`Telegram MTProto Proxy`"
@@ -221,15 +219,15 @@ def surveillance():
             sline = "{2}{0}{1}{0}".format(sline, items, title)
             print(sline)
             try:
-                if pmid == 1:
+                if PMID == 1:
                     pMessage = await client.send_message(receiver, sline, parse_mode='md')
-                    pmid = pMessage.id
+                    PMID = pMessage.id
                 else:
-                    pMessage = await client.edit_message(receiver, pmid, sline, parse_mode='md')
-                    pmid = pMessage.id
+                    pMessage = await client.edit_message(receiver, PMID, sline, parse_mode='md')
+                    PMID = pMessage.id
             except Exception as err:
                 pMessage = await client.send_message(receiver, sline, parse_mode='md')
-                pmid = pMessage.id
+                PMID = pMessage.id
             return
 
         # Keyword scanner
@@ -298,7 +296,7 @@ def surveillance():
                 ))
                 # print("Target hit!")
                 break
-    
+
     print('[' + colour('+', 'green') +'] Running surveillance operation!')
     with client:
         client.run_until_disconnected()
@@ -306,7 +304,8 @@ def surveillance():
 def operationHandler():
     """
     handle add, delte, dig, operation using telegram bot
-    Todo: currently qurey, add, delete function are ad hoc solution, not efficient nor readible for sure.
+    Todo: currently qurey, add, delete function are ad hoc solution,
+    not efficient nor readible for sure.
           1. refactory CURD functions.
           2. detailed help information when legitimate user calling /help.
           3. able to show detailed information for targeted user, group.
@@ -321,10 +320,7 @@ def operationHandler():
     # Check a given user id is admin or not
     def isAdmin(sid):
         global admin
-        if sid in admin:
-            return True
-        else:
-            return False
+        return sid in admin
 
     @handler.on(events.NewMessage(pattern='/start'))
     async def start(event):
@@ -333,30 +329,30 @@ def operationHandler():
         Randomly respond with a Hi!
         """
 
-        sayHi = [
-                'Hi! 😊',
-                'Good day! 😂',
-                'Bonjour! 😄',
-                'Hola! 🥰',
-                'السلام عليكم! 😘',
-                'Привет! 😎',
-                'こんにちは! 😍',
-                'Guten Tag! 😋'
-                ]
-        chatID = event.message.chat_id
-        senderID = event.message.from_id
+        say_hi = [
+            'Hi! 😊',
+            'Good day! 😂',
+            'Bonjour! 😄',
+            'Hola! 🥰',
+            'السلام عليكم! 😘',
+            'Привет! 😎',
+            'こんにちは! 😍',
+            'Guten Tag! 😋'
+        ]
+        chat_id = event.message.chat_id
+        sender_id = event.message.from_id
         try:
-            if isAdmin(senderID):
+            if isAdmin(sender_id):
                 pass
             else:
-                debug_info = "[{}] {} {}".format(colour('*', 'blue'), colour('User ID:', 'green'), senderID)
+                debug_info = "[{}] {} {}".format(colour('*', 'blue'), colour('User ID:', 'green'), sender_id)
                 print(debug_info)
         except Exception as e:
             print(e)
         i = randint(0, 8)
-        async with handler.action(chatID, 'typing'):
+        async with handler.action(chat_id, 'typing'):
             await asyncio.sleep(2)
-            await event.respond(sayHi[i])
+            await event.respond(say_hi[i])
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/help'))
@@ -437,7 +433,7 @@ def operationHandler():
         if not isAdmin(senderID):
             raise events.StopPropagation
         input_cmd = event.message.message
-    
+
         parameters = input_cmd.split(' ')
         pl = len(parameters)
         if pl == 3:
@@ -488,7 +484,7 @@ def operationHandler():
         if not isAdmin(senderID):
             raise events.StopPropagation
         input_cmd = event.message.message
-    
+
         parameters = input_cmd.split(' ')
         pl = len(parameters)
         if pl == 3:
@@ -606,7 +602,7 @@ Keyword watchlist`
                 text = "{0}. [{1}](tg://user?id={1})\n".format(index, uid)
                 output = output + text
             await event.respond(output)
-    
+
         async def groupLink():
             output = output + '\nGroup:\n'
             for i in range(len(grouplist)):
@@ -636,7 +632,7 @@ Keyword watchlist`
         await summaryBuilder(userlist, pUsers)    # send user watchlist summary
         await summaryBuilder(grouplist, pGroups)  # send group watchlist summary
         await summaryBuilder(keywords, pKeywords) # send keyword watchlist summary
-            
+
         raise events.StopPropagation
 
     @handler.on(events.NewMessage(pattern='/save'))
